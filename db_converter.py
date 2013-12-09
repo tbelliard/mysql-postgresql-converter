@@ -27,6 +27,7 @@ def parse(input_filename, output_filename):
     current_table = None
     creation_lines = []
     foreign_key_lines = []
+    indexes_lines = []
     sequence_lines = []
     cast_lines = []
     num_inserts = 0
@@ -142,7 +143,7 @@ def parse(input_filename, output_filename):
             elif line.startswith("UNIQUE KEY"):
                 creation_lines.append("UNIQUE (%s)" % line.split("(")[1].split(")")[0])
             elif line.startswith("KEY"):
-                pass
+                indexes_lines.append("CREATE INDEX ON \"%s\" %s" % (current_table, line.split()[2].strip().rstrip(",")))
             # Is it the end of the table?
             elif line == ");":
                 for i, line in enumerate(creation_lines):
@@ -167,6 +168,11 @@ def parse(input_filename, output_filename):
     # Write FK constraints out
     output.write("\n-- Foreign keys --\n")
     for line in foreign_key_lines:
+        output.write("%s;\n" % line)
+
+    # Write indexes out.
+    output.write("\n-- Indexes --\n")
+    for line in indexes_lines:
         output.write("%s;\n" % line)
 
     # Write sequences out
