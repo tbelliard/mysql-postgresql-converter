@@ -101,11 +101,17 @@ def parse(input_filename, output_filename):
                 extra = re.sub("CHARACTER SET [\w\d]+\s*", "", extra.replace("unsigned", ""))
                 # utf8_bin collation causes an error and usually is a no-op for postgres
                 extra = extra.replace("COLLATE utf8_bin", "")
+                extra = extra.replace("COLLATE utf8_unicode_ci", "")
                 # See if it needs type conversion
                 final_type = None
+                default = None
                 if type == "tinyint(1)":
                     type = "int4"
                     final_type = "boolean"
+                    if re.search("DEFAULT '0'", extra):
+                        default = "FALSE"
+                    elif re.search("DEFAULT '1'", extra):
+                        default = "TRUE"
                 elif type.startswith("int("):
                     type = "integer"
                 elif type.startswith("bigint("):
@@ -127,6 +133,8 @@ def parse(input_filename, output_filename):
                     type = "double precision"
                 if final_type:
                     cast_lines.append("ALTER TABLE \"%s\" ALTER COLUMN \"%s\" DROP DEFAULT, ALTER COLUMN \"%s\" TYPE %s USING CAST(\"%s\" as %s)" % (current_table, name, name, final_type, name, final_type))
+                    if default:
+                        cast_lines.append("ALTER TABLE \"%s\" ALTER COLUMN \"%s\" SET DEFAULT %s" % (current_table, name, default))
                 # ID fields need sequences
                 if name == "id":
                     sequence_lines.append("CREATE SEQUENCE %s_id_seq" % (current_table))
